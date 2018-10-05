@@ -5,22 +5,58 @@ import Navbar from './components/navbar/navbar.js';
 import { Switch, Route } from 'react-router-dom';
 import Home from './components/views/home/home.js';
 import Checkout from './components/views/checkout/checkout.js';
+import firebase from './firebase.js';
 
 class App extends Component {
   constructor() {
     super();
     this.state = {
-      total: undefined,
-      cart: undefined,
-      products: undefined
-    }
-  }
-
-  componentWillMount() {
-    this.setState({
       total: 0,
       cart: [],
       products: products
+    }
+
+    // add products to firebase, only nedd to run once, then products are stored until we overwrite or remove them with a separate line of code.
+    // firebase.database().ref('products').set(products);
+    // firebase.database().ref('cart').set([]);
+  }
+
+  componentWillMount() {
+    // grabbing products from cloud to start into local products state
+    const dbProducts = firebase.database().ref('products');
+    dbProducts.on('value',(response) => {
+      let items = response.val();
+      let newState = [];
+
+      // check if there are products in the cloud database first
+      if (items != null) {
+        for (let index in items) {
+          newState.push(items[index]);
+        }
+      }
+
+      // set product state variable to newState
+      this.setState({ product: newState });
+    });
+
+    // grabbing cart from cloud to start into local cart state
+    const dbCart = firebase.database().ref('cart');
+    dbCart.on('value',(response) => {
+      let items = response.val();
+      let total = 0;
+      let newCart = [];
+      // check if there are products in the cloud database first
+      if (items != null) {
+        for (let index in items) {
+          newCart.push(items[index]);
+          total += items[index].price;
+        }
+      }
+
+      this.setState({
+        cart: newCart,
+        total: total.toFixed(2)
+      });
     });
   }
 
@@ -36,6 +72,9 @@ class App extends Component {
     this.setState({
       total: total.toFixed(2)
     });
+
+    // add total to firebase
+    firebase.database().ref('total').set(total.toFixed(2));
   }
 
   // add item on button click
@@ -57,6 +96,9 @@ class App extends Component {
     });
 
     this.calcTotal();
+
+    // add updated cart to cloud
+    firebase.database().ref('cart').set(items);
   }
 
   removeItem = (id) => {
@@ -71,6 +113,9 @@ class App extends Component {
 
     this.setState({ cart: items });
     this.calcTotal();
+
+    // add updated cart to cloud
+    firebase.database().ref('cart').set(items);
   }
 
   render() {
